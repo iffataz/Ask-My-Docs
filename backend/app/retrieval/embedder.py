@@ -15,7 +15,11 @@ class OpenAIEmbedder:
     def __init__(self, *, model: str | None = None, api_key: str | None = None) -> None:
         settings = get_settings()
         self._model = model or settings.embedding_model
-        self._client = OpenAI(api_key=api_key or settings.openai_api_key)
+        # OpenAI's client treats "" same as missing and raises at construction, so fall
+        # back to a placeholder (not None/"") so construction succeeds without a live
+        # key; the actual auth error surfaces at request time, matching Settings'
+        # "optional at construction" design (see app/config.py).
+        self._client = OpenAI(api_key=api_key or settings.openai_api_key or "unset")
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         if not texts:
