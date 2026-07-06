@@ -1,7 +1,8 @@
+from collections.abc import AsyncIterator
 from typing import Protocol
 
 from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
 from app.config import get_settings
 from app.graph.schemas import GradeResult, RouteDecision
@@ -55,6 +56,29 @@ def _format_docs(docs: list[ScoredChunk]) -> str:
     )
 
 
+def _build_generate_messages(
+    question: str,
+    docs: list[ScoredChunk],
+    *,
+    limited_context: bool,
+    retrieval_attempted: bool,
+) -> list[BaseMessage]:
+    if not retrieval_attempted:
+        return [SystemMessage(content=GENERAL_SYSTEM_PROMPT), HumanMessage(content=question)]
+
+    if not docs:
+        return [
+            SystemMessage(content=NO_RELEVANT_DOCS_SYSTEM_PROMPT),
+            HumanMessage(content=question),
+        ]
+
+    context_note = (
+        "\n\n(Note: context is limited — say so in the answer.)" if limited_context else ""
+    )
+    prompt = f"Question: {question}\n\nDocument chunks:\n{_format_docs(docs)}{context_note}"
+    return [SystemMessage(content=GENERATE_SYSTEM_PROMPT), HumanMessage(content=prompt)]
+
+
 class LLM(Protocol):
     def route(self, question: str) -> RouteDecision: ...
 
@@ -70,6 +94,15 @@ class LLM(Protocol):
         limited_context: bool,
         retrieval_attempted: bool,
     ) -> str: ...
+
+    def stream_generate(
+        self,
+        question: str,
+        docs: list[ScoredChunk],
+        *,
+        limited_context: bool,
+        retrieval_attempted: bool,
+    ) -> AsyncIterator[str]: ...
 
 
 class AnthropicLLM:
@@ -118,26 +151,23 @@ class AnthropicLLM:
         limited_context: bool,
         retrieval_attempted: bool,
     ) -> str:
-        if not retrieval_attempted:
-            result = self._chat.invoke(
-                [SystemMessage(content=GENERAL_SYSTEM_PROMPT), HumanMessage(content=question)]
-            )
-            return str(result.content)
-
-        if not docs:
-            result = self._chat.invoke(
-                [
-                    SystemMessage(content=NO_RELEVANT_DOCS_SYSTEM_PROMPT),
-                    HumanMessage(content=question),
-                ]
-            )
-            return str(result.content)
-
-        context_note = (
-            "\n\n(Note: context is limited — say so in the answer.)" if limited_context else ""
+        messages = _build_generate_messages(
+            question, docs, limited_context=limited_context, retrieval_attempted=retrieval_attempted
         )
-        prompt = f"Question: {question}\n\nDocument chunks:\n{_format_docs(docs)}{context_note}"
-        result = self._chat.invoke(
-            [SystemMessage(content=GENERATE_SYSTEM_PROMPT), HumanMessage(content=prompt)]
-        )
+        result = self._chat.invoke(messages)
         return str(result.content)
+
+    async def stream_generate(
+        self,
+        question: str,
+        docs: list[ScoredChunk],
+        *,
+        limited_context: bool,
+        retrieval_attempted: bool,
+    ) -> AsyncIterator[str]:
+        messages = _build_generate_messages(
+            question, docs, limited_context=limited_context, retrieval_attempted=retrieval_attempted
+        )
+        async for chunk in self._chat.astream(messages):
+            if chunk.content:
+                yield str(chunk.content)

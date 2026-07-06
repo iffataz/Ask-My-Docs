@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from typing import Literal
 
 from app.graph.schemas import ChunkRelevance, GradeResult, RouteDecision
@@ -69,3 +70,18 @@ class FakeLLM:
         self.last_limited_context = limited_context
         self.last_retrieval_attempted = retrieval_attempted
         return f"answer to: {question}"
+
+    async def stream_generate(
+        self,
+        question: str,
+        docs: list[ScoredChunk],
+        *,
+        limited_context: bool,
+        retrieval_attempted: bool,
+    ) -> AsyncIterator[str]:
+        self.generate_calls += 1
+        self.last_generate_docs = docs
+        self.last_limited_context = limited_context
+        self.last_retrieval_attempted = retrieval_attempted
+        for word in f"answer to: {question}".split(" "):
+            yield word + " "
