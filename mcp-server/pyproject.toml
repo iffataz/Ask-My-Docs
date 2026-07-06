@@ -1,0 +1,27 @@
+[project]
+name = "ask-my-docs-mcp-server"
+version = "0.1.0"
+description = "MCP server exposing Ask My Docs' RAG pipeline as tools"
+requires-python = "==3.12.*"
+dependencies = ["ask-my-docs-backend", "mcp[cli]>=1.27,<2"]
+
+[tool.uv.sources]
+ask-my-docs-backend = { path = "../backend" }
+
+[dependency-groups]
+dev = ["pytest>=8.3", "ruff>=0.7", "mypy>=1.13"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
