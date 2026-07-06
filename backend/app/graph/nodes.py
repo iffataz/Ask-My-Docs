@@ -6,6 +6,7 @@ from app.graph.deps import GraphDeps
 from app.graph.schemas import Source
 from app.graph.state import GraphState
 from app.logging import get_logger
+from app.retrieval.store import ScoredChunk
 
 logger = get_logger(__name__)
 
@@ -13,6 +14,19 @@ logger = get_logger(__name__)
 def _log_transition(node: str, start: float, **fields: Any) -> None:
     duration_ms = round((time.perf_counter() - start) * 1000, 2)
     logger.info("graph_node", node=node, duration_ms=duration_ms, **fields)
+
+
+def select_cited_docs(state: GraphState) -> list[ScoredChunk]:
+    grade = state["relevance_grade"]
+    docs = state["retrieved_docs"]
+
+    if grade is None:
+        return docs
+
+    # ChunkRelevance.chunk_index is the position of the doc in `docs` (0-based, as
+    # presented to the grader), not the document's own chunk_index — map back by position.
+    relevant_positions = {r.chunk_index for r in grade.relevances if r.relevant}
+    return [doc for i, doc in enumerate(docs) if i in relevant_positions]
 
 
 def router_node(state: GraphState, deps: GraphDeps) -> dict[str, Any]:
@@ -57,16 +71,7 @@ def rewrite_query_node(state: GraphState, deps: GraphDeps) -> dict[str, Any]:
 
 def generate_node(state: GraphState, deps: GraphDeps) -> dict[str, Any]:
     start = time.perf_counter()
-    grade = state["relevance_grade"]
-    docs = state["retrieved_docs"]
-
-    if grade is not None:
-        # ChunkRelevance.chunk_index is the position of the doc in `docs` (0-based, as
-        # presented to the grader), not the document's own chunk_index — map back by position.
-        relevant_positions = {r.chunk_index for r in grade.relevances if r.relevant}
-        cited_docs = [doc for i, doc in enumerate(docs) if i in relevant_positions]
-    else:
-        cited_docs = docs
+    cited_docs = select_cited_docs(state)
 
     answer = deps.llm.generate(
         state["question"],
