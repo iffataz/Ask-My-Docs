@@ -62,6 +62,35 @@ def build_graph(deps: GraphDeps) -> CompiledStateGraph[GraphState, None, GraphSt
     return graph.compile()
 
 
+def build_retrieval_graph(
+    deps: GraphDeps,
+) -> CompiledStateGraph[GraphState, None, GraphState, GraphState]:
+    """Same routing as build_graph, but stops before generate — the caller (the /chat
+    SSE endpoint) handles generation itself so it can stream tokens. Reuses
+    _route_after_router/_decide_after_grade unchanged; only their "generate" outcome
+    is remapped to END instead of a node, since there's no generate node here."""
+    graph = StateGraph(GraphState)
+
+    graph.add_node("router", partial(router_node, deps=deps))
+    graph.add_node("retrieve", partial(retrieve_node, deps=deps))
+    graph.add_node("grade_documents", partial(grade_documents_node, deps=deps))
+    graph.add_node("rewrite_query", partial(rewrite_query_node, deps=deps))
+
+    graph.add_edge(START, "router")
+    graph.add_conditional_edges(
+        "router", _route_after_router, {"retrieve": "retrieve", "generate": END}
+    )
+    graph.add_edge("retrieve", "grade_documents")
+    graph.add_conditional_edges(
+        "grade_documents",
+        _decide_after_grade,
+        {"generate": END, "rewrite_query": "rewrite_query"},
+    )
+    graph.add_edge("rewrite_query", "retrieve")
+
+    return graph.compile()
+
+
 def build_default_graph() -> CompiledStateGraph[GraphState, None, GraphState, GraphState]:
     deps = GraphDeps(
         llm=AnthropicLLM(),
