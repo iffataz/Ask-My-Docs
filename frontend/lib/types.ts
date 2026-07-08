@@ -7,6 +7,7 @@ export interface DocumentInfo {
 export interface Source {
   filename: string;
   chunk_index: number;
+  text: string;
 }
 
 export interface ChatMessage {

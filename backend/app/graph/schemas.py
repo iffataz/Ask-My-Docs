@@ -23,3 +23,4 @@ class GradeResult(BaseModel):
 class Source(BaseModel):
     filename: str
     chunk_index: int
+    text: str

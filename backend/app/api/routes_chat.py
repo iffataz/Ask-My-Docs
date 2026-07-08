@@ -45,7 +45,10 @@ async def _stream_answer(
         ):
             yield sse_event("token", {"text": token})
 
-        sources = [Source(filename=d.filename, chunk_index=d.chunk_index) for d in cited_docs]
+        sources = [
+            Source(filename=d.filename, chunk_index=d.chunk_index, text=d.text)
+            for d in cited_docs
+        ]
         yield sse_event("done", {"sources": [s.model_dump() for s in sources]})
     except Exception as exc:
         logger.error("chat_stream_failed", error=str(exc))
