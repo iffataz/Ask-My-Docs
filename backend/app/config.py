@@ -14,8 +14,11 @@ class Settings(BaseSettings):
 
     chroma_persist_dir: str = "./.chroma"
 
-    chunk_size: int = 800
-    chunk_overlap: int = 150
+    # Measured in characters (RecursiveCharacterTextSplitter's unit), not tokens:
+    # 3200 chars ≈ the brief's ~800 tokens. Too-small chunks shred section
+    # headings away from their tables and wreck retrieval on structured docs.
+    chunk_size: int = 3200
+    chunk_overlap: int = 600
     retrieval_k: int = 5
     max_rewrites: int = 2
 

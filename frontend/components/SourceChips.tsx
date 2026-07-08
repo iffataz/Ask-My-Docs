@@ -23,9 +23,13 @@ export default function SourceChips({ sources }: { sources: Source[] }) {
         ))}
       </div>
       {expanded !== null && (
-        <div className="border-l-2 border-brown bg-brown/5 px-3 py-2 font-mono text-xs text-ink/70">
-          {sources[expanded].filename} — chunk {sources[expanded].chunk_index}{" "}
-          consulted to ground this answer.
+        <div className="border-l-2 border-brown bg-brown/5 px-3 py-2">
+          <p className="font-mono text-[11px] uppercase tracking-wide text-brown">
+            {sources[expanded].filename} — chunk {sources[expanded].chunk_index}
+          </p>
+          <p className="mt-1.5 max-h-48 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-ink/80">
+            {sources[expanded].text}
+          </p>
         </div>
       )}
     </div>

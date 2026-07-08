@@ -79,7 +79,9 @@ def generate_node(state: GraphState, deps: GraphDeps) -> dict[str, Any]:
         limited_context=state["limited_context"],
         retrieval_attempted=state["route"] == "needs_retrieval",
     )
-    sources = [Source(filename=d.filename, chunk_index=d.chunk_index) for d in cited_docs]
+    sources = [
+        Source(filename=d.filename, chunk_index=d.chunk_index, text=d.text) for d in cited_docs
+    ]
 
     _log_transition("generate", start, limited_context=state["limited_context"])
     return {"answer": answer, "sources": sources}

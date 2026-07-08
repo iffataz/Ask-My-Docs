@@ -27,3 +27,5 @@ def test_end_to_end_answer_includes_sources() -> None:
     assert len(result.sources) > 0
     assert all(s.filename == "readme.md" for s in result.sources)
     assert {s.chunk_index for s in result.sources} <= {0, 1}
+    # citation chips render this text in the UI — it must carry the chunk content
+    assert all(s.text for s in result.sources)
